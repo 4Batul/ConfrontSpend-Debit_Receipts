@@ -14,8 +14,10 @@ A simple HTML-based expense tracker that focuses on tracking **expenses** (money
 ## Usage
 1. Download or copy the `index.html` file.
 2. Open it with any modern web browser (Chrome, Firefox, Edge, etc.).
-   OR
-   visit: https://2bat2.neocities.org/Expenses/
+   OR VISIT:
+```bash
+https://2bat2.neocities.org/Expenses/
+   
 4. Start adding your expenses (debts).
 5. Use the sorting options to organize your expenses.
 6. Generate receipts for your records.
