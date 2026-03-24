@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="en" id="mainHtml">
+<head>
+    <link rel="icon" href="money-bag.png" type="image/x-icon">
+    <link rel="manifest" href="manifest.json" />
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ConfrontSpend | Advanced</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script>
+        // Config for Tailwind Dark Mode
+        tailwind.config = { darkMode: 'class' }
+    </script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600&family=Courier+Prime&display=swap');
+        body { font-family: 'Inter', sans-serif; transition: background-color 0.3s ease; }
+        .receipt-font { font-family: 'Courier Prime', monospace; }
+        .receipt-paper {
+            background: #fff;
+            background-image: radial-gradient(#e5e7eb 1px, transparent 1px);
+            background-size: 20px 20px;
+        }
+    </style>
+</head>
+<body class="bg-slate-50 dark:bg-slate-900 min-h-screen pb-24 text-slate-900 dark:text-slate-100">
+
+    <header class="bg-white/80 dark:bg-slate-800/80 backdrop-blur-md border-b dark:border-slate-700 p-6 sticky top-0 z-10">
+        <div class="max-w-md mx-auto flex justify-between items-center">
+            <div>
+                <h1 class="text-2xl font-bold tracking-tight text-indigo-600 dark:text-indigo-400">ConfrontSpend </h1>
+                <div class="flex gap-2 mt-1">
+                    <button onclick="toggleTheme()" class="text-[10px] font-bold uppercase tracking-widest bg-slate-200 dark:bg-slate-700 px-2 py-1 rounded">Theme</button>
+                    <button onclick="toggleSort()" id="sortBtn" class="text-[10px] font-bold uppercase tracking-widest bg-slate-200 dark:bg-slate-700 px-2 py-1 rounded">Sort: Newest</button>
+                </div>
+            </div>
+            <div class="text-right" id="totalDisplay">
+                <!-- <p  class="text-2xl font-bold leading-none"> 0.00</p>  -->
+            </div>
+        </div>
+    </header>
+
+    <main class="max-w-md mx-auto p-6 space-y-3" id="expenseList"></main>
+
+    <div class="fixed bottom-6 right-6 flex flex-col gap-4 items-end">
+        <button onclick="toggleReceipt()" class="bg-slate-800 dark:bg-indigo-600 text-white px-5 py-2.5 rounded-full shadow-lg font-semibold text-sm">
+            View Receipt
+        </button>
+        <button onclick="openModal()" class="bg-indigo-600 dark:bg-slate-100 dark:text-slate-900 text-white w-14 h-14 rounded-2xl shadow-xl flex items-center justify-center text-3xl font-light">
+            +
+        </button>
+    </div>
+
+    <div id="modal" class="hidden fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-6 z-20">
+        <div class="bg-white dark:bg-slate-800 rounded-3xl w-full max-w-sm p-8 shadow-2xl">
+            <h2 class="text-xl font-bold mb-6">Add Expense</h2>
+            <input type="number" id="amountInput" placeholder="0.00" class="w-full bg-slate-50 dark:bg-slate-700 border-none p-4 rounded-xl mb-4 outline-none focus:ring-2 focus:ring-indigo-500">
+            <input type="text" id="reasonInput" placeholder="Reason" class="w-full bg-slate-50 dark:bg-slate-700 border-none p-4 rounded-xl mb-6 outline-none focus:ring-2 focus:ring-indigo-500">
+            <div class="flex gap-3">
+                <button onclick="closeModal()" class="flex-1 py-4 text-slate-400 font-bold">Cancel</button>
+                <button onclick="addExpense()" class="flex-1 py-4 bg-indigo-600 text-white rounded-2xl font-bold">Save</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="receiptModal" class="hidden fixed inset-0 bg-slate-900/90 flex items-center justify-center p-4 z-30">
+        <div  class="flex flex-col items-center gap-4 w-full max-w-xs max-h-[90vh]">
+            <div id="receiptCapture" class="bg-white w-full p-8 receipt-paper shadow-inner border-t-8 border-indigo-600 rounded-b-sm overflow-y-auto">
+                <div class="receipt-font text-slate-800">
+                    <div class="text-center mb-6">
+                        <h2 class="text-xl font-bold tracking-tighter italic">ConfrontSpend </h2>
+                        <p class="text-[10px] opacity-70" id="receiptDate"></p>
+                        <p class="text-xs">------------------------------</p>
+                    </div>
+                    <div id="receiptItems" class="text-sm space-y-2 mb-6"></div>
+                    <div class="border-t border-dashed border-slate-400 pt-4">
+                        <div class="flex justify-between font-bold text-lg">
+                            <span>TOTAL</span>
+                            <span id="receiptTotal">0.00</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="flex flex-col w-full gap-2">
+                <button onclick="downloadReceipt()" class="w-full py-3 bg-indigo-500 text-white rounded-xl text-sm font-bold shadow-lg">Download PNG</button>
+                <button onclick="toggleReceipt()" class="w-full py-3 bg-slate-700 text-white rounded-xl text-sm font-bold">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+      
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('/service-worker.js');
+  }
+
+        let expenses = JSON.parse(localStorage.getItem('myExpenses')) || [];
+        let sortMode = 'newest'; // newest, high, low
+
+        window.onload = () => {
+            updateUI();
+            if(localStorage.getItem('theme') === 'dark') toggleTheme(true);
+        };
+
+        function toggleTheme(init) {
+            const html = document.getElementById('mainHtml');
+            const isDark = html.classList.toggle('dark');
+            if(!init) localStorage.setItem('theme', isDark ? 'dark' : 'light');
+        }
+
+        function toggleSort() {
+            if (sortMode === 'newest') sortMode = 'high';
+            else if (sortMode === 'high') sortMode = 'low';
+            else sortMode = 'newest';
+            
+            const btn = document.getElementById('sortBtn');
+            btn.innerText = `Sort: ${sortMode.charAt(0).toUpperCase() + sortMode.slice(1)}`;
+            updateUI();
+        }
+
+        function updateUI() {
+            const list = document.getElementById('expenseList');
+            list.innerHTML = '';
+            
+            // Sort data before rendering
+            let displayList = [...expenses];
+            if (sortMode === 'high') displayList.sort((a, b) => b.amount - a.amount);
+            if (sortMode === 'low') displayList.sort((a, b) => a.amount - b.amount);
+            if (sortMode === 'newest') displayList.reverse();
+
+            let total = 0;
+            displayList.forEach(exp => {
+                total += exp.amount;
+                const div = document.createElement('div');
+                div.className = "bg-white dark:bg-slate-800 p-5 rounded-2xl border dark:border-slate-700 flex justify-between items-center shadow-sm";
+                div.innerHTML = `
+    <div class="flex items-center gap-4">
+        <div class="w-10 h-10 bg-indigo-50 dark:bg-slate-700 rounded-full flex items-center justify-center text-indigo-500 dark:text-indigo-400 font-bold">${exp.reason[0]}</div>
+        <div><p class="font-bold">${exp.reason}</p><p class="text-[10px] text-slate-400 uppercase font-bold">${exp.date}</p></div>
+    </div>
+    <div class="flex items-center gap-4">
+        <p class="font-bold"> ${exp.amount.toFixed(2)}</p>
+        <button onclick="deleteExpense(${exp.id})" class="text-red-500 hover:text-red-700 transition-colors p-1">
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M3 6h18m-2 0v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6m3 0V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"></path>
+            </svg>
+        </button>
+    </div>`;
+                list.appendChild(div);
+            });
+            document.getElementById('totalDisplay').innerHTML= `<p  class="text-2xl font-bold leading-none">Rs. ${total.toFixed(2)}</p>`;
+        }
+
+        // ... [Include standard addExpense, deleteExpense, downloadReceipt functions from previous turns] ...
+        function openModal() { document.getElementById('modal').classList.remove('hidden'); }
+        function closeModal() { document.getElementById('modal').classList.add('hidden'); }
+        function addExpense() {
+            const amount = parseFloat(document.getElementById('amountInput').value);
+            const reason = document.getElementById('reasonInput').value;
+            if (isNaN(amount) || !reason) return;
+            expenses.push({ id: Date.now(), amount, reason, date: new Date().toLocaleDateString() });
+            saveData(); updateUI(); closeModal();
+            document.getElementById('amountInput').value = ''; document.getElementById('reasonInput').value = '';
+        }
+        function deleteExpense(id) { expenses = expenses.filter(e => e.id !== id); saveData(); updateUI(); }
+        function saveData() { localStorage.setItem('myExpenses', JSON.stringify(expenses)); }
+        function toggleReceipt() { 
+            const m = document.getElementById('receiptModal');
+            if(m.classList.contains('hidden')) { generateReceipt(); m.classList.remove('hidden'); }
+            else m.classList.add('hidden');
+        }
+        function generateReceipt() {
+            const container = document.getElementById('receiptItems');
+            let total = 0; container.innerHTML = '';
+            document.getElementById('receiptDate').innerText = new Date().toLocaleString();
+            expenses.forEach(exp => {
+                total += exp.amount;
+                const item = document.createElement('div');
+                item.className = "flex justify-between";
+                item.innerHTML = `<span>${exp.reason}</span> <span> ${exp.amount.toFixed(2)}</span>`;
+                container.appendChild(item);
+            });
+            document.getElementById('receiptTotal').innerHTML= `<p  class="text-2xl font-bold leading-none">Rs. ${total.toFixed(2)}</p>`
+        }
+    
+        function downloadReceipt() {
+    const original = document.getElementById('receiptCapture');
+    
+    // 1. Create a "Twin" clone of the receipt
+    const clone = original.cloneNode(true);
+    
+    // 2. Style the clone to be invisible and full-length
+    Object.assign(clone.style, {
+        position: 'absolute',
+        top: '-9999px',
+        left: '0',
+        width: original.offsetWidth + 'px',
+        height: 'auto', // Force full height
+        overflow: 'visible',
+        maxHeight: 'none'
+    });
+    
+    // 3. Temporarily add to the document
+    document.body.appendChild(clone);
+
+    // 4. Capture the clone
+    html2canvas(clone, {
+        scale: 3,
+        backgroundColor: "#ffffff",
+        useCORS: true,
+        // Ensure the entire canvas is captured
+        height: clone.offsetHeight,
+        windowHeight: clone.offsetHeight
+    }).then(canvas => {
+        const link = document.createElement('a');
+        link.download = `Receipt-${Date.now()}.png`;
+        link.href = canvas.toDataURL("image/png");
+        link.click();
+        
+        // 5. Cleanup: Remove the twin
+        document.body.removeChild(clone);
+    }).catch(err => {
+        console.error("Download failed:", err);
+        if(document.body.contains(clone)) document.body.removeChild(clone);
+    });
+}
+    </script>
+</body>
+</html>
