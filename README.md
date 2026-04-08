@@ -1,7 +1,7 @@
 
-# Expense Tracker
+# ConfrontSpend Expense Tracker
 
-A simple HTML-based expense tracker that focuses on tracking **expenses** (money outgoing). It features a modern, customizable interface with theme switching, sorting options, and a cool receipt generator. All data is stored locally on your device, making it lightweight and portable—no server needed!
+A simple HTML-based expense tracker that focuses on tracking **expenses** only. It features a modern, customizable interface with theme switching, sorting options, and a cool receipt generator. All data is stored locally on your device, making it lightweight and portable—no server needed! (I made it for my personal use trying to avoid my excessive spending habbits you can tweak according to your usage) 
 
 ## Features
 - **Track Debts:** Log outgoing expenses with ease.
@@ -28,4 +28,4 @@ https://2bat2.neocities.org/Expenses/
 - Designed for personal use and small-scale tracking.
 
 ## License
-This project is open-source. Feel free to customize and improve!
+This project is open-source. Feel free to customize , improve, fork this repository, submit issues, and propose pull requests. !
